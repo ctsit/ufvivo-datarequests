@@ -1,0 +1,91 @@
+# Query for Florida ExpertNet
+#
+# Copyright 2020 University of Florida
+# Author: Taeber Rapczak <taeber@ufl.edu>
+#
+# For every UF faculty member, it returns their:
+#  - UF VIVO URL
+#  - name
+#  - phone number
+#  - email address
+#  - photograph URL
+#  - ORCiD ID
+#  - Research Overview
+#  - Research Areas
+
+
+PREFIX foaf:     <http://xmlns.com/foaf/0.1/>
+PREFIX obo:      <http://purl.obolibrary.org/obo/>
+PREFIX rdfs:     <http://www.w3.org/2000/01/rdf-schema#>
+PREFIX ufVivo:   <http://vivo.ufl.edu/ontology/vivo-ufl/>
+PREFIX vcard:    <http://www.w3.org/2006/vcard/ns#>
+PREFIX vitro:    <http://vitro.mannlib.cornell.edu/ns/vitro/public#>
+PREFIX vivo:     <http://vivoweb.org/ontology/core#>
+
+
+SELECT
+    (?person AS ?link)
+    (STR(SAMPLE(?name)) AS ?name)
+    (STR(?gatorlink) AS ?gatorlink)
+    (STR(SAMPLE(?phone)) AS ?phone)
+    (STR(SAMPLE(?email)) AS ?email)
+    ?photoLink
+    ?orcid
+    (GROUP_CONCAT(?researchArea; separator="|") AS ?researchAreas)
+    ?researchOverview
+WHERE
+{
+    ?person  a  foaf:Person,
+                ufVivo:UFEntity,
+                vivo:FacultyMember .
+
+    ?person  rdfs:label        ?name      .
+    ?person  ufVivo:gatorlink  ?gatorlink .
+    OPTIONAL
+    {
+        ?person  obo:ARG_2000028  [
+            vcard:hasTelephone [
+               vcard:telephone  ?phone
+            ]
+        ]
+    }
+    OPTIONAL
+    {
+        ?person  obo:ARG_2000028  [
+            vcard:hasEmail [
+               vcard:email  ?emailAddr
+            ]
+        ]
+    }
+    BIND(
+        IF(BOUND(?emailAddr), ?emailAddr, CONCAT(?gatorlink, "@ufl.edu"))
+        AS ?email
+    )
+    OPTIONAL
+    {
+        ?person  vitro:mainImage  [
+            vitro:downloadLocation  [
+                vitro:directDownloadUrl  ?photo
+            ]
+        ]
+    }
+    BIND(
+        IF(BOUND(?photo), CONCAT("https://vivo.ufl.edu", ?photo), "")
+        AS ?photoLink
+    )
+    OPTIONAL
+    {
+        ?person  vivo:orcidId  ?orcid
+    }
+    OPTIONAL
+    {
+        ?person  vivo:hasResearchArea  [
+            rdfs:label            ?researchArea
+        ]
+    }
+    OPTIONAL
+    {
+        ?person  vivo:researchOverview  ?researchOverview
+    }
+}
+
