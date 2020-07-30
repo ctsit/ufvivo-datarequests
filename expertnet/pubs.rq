@@ -1,0 +1,76 @@
+# Publications query for Florida ExpertNet
+#
+# Finds all publications with at least one UF author and returns its:
+#  - UF VIVO URL
+#  - article title
+#  - DOI
+#  - PubMed ID
+#  - publication date
+#  - list of UF author's URLs
+#  - journal title
+#  - journal ISSN
+#  - journal EISSN
+#  - subject areas
+#
+# Copyright 2020 University of Florida
+# Author: Taeber Rapczak <taeber@ufl.edu>
+
+PREFIX bibo:   <http://purl.org/ontology/bibo/>
+PREFIX foaf:   <http://xmlns.com/foaf/0.1/>
+PREFIX obo:    <http://purl.obolibrary.org/obo/>
+PREFIX rdfs:   <http://www.w3.org/2000/01/rdf-schema#>
+PREFIX ufVivo: <http://vivo.ufl.edu/ontology/vivo-ufl/>
+PREFIX vcard:  <http://www.w3.org/2006/vcard/ns#>
+PREFIX vitro:  <http://vitro.mannlib.cornell.edu/ns/vitro/public#>
+PREFIX vivo:   <http://vivoweb.org/ontology/core#>
+PREFIX xsd:    <http://www.w3.org/2001/XMLSchema#>
+
+
+SELECT
+    ?article
+    (STR(?title) AS ?title)
+    (STR(?doi) AS ?doi)
+    (STR(?pmid) AS ?pmid)
+    (xsd:dateTime(?published) AS ?published)
+    (STR(GROUP_CONCAT(DISTINCT(?author); separator="|")) as ?authors)
+    (STR(?journalTitle) AS ?journalTitle)
+    (STR(?issn) AS ?issn)
+    (STR(?eissn) AS ?eissn)
+    (STR(GROUP_CONCAT(DISTINCT(?subjectArea); separator="|")) AS ?subjectAreas)
+WHERE
+{
+
+    ?article  a                         bibo:AcademicArticle  ;
+              rdfs:label                ?title                ;
+              vivo:hasPublicationVenue  ?journal              ;
+              vivo:dateTimeValue        [
+                  vivo:dateTime         ?published
+              ]
+    .
+
+    ?author      a                 foaf:Person,
+                                   ufVivo:UFEntity,
+                                   vivo:FacultyMember ;
+                 ufVivo:gatorlink  ?gatorlink         ;
+                 vivo:relatedBy    [
+                    a             vivo:Authorship  ;
+                    vivo:relates  ?article
+                 ]
+    .
+
+    ?journal             rdfs:label  ?journalTitle  .
+    OPTIONAL { ?journal  bibo:issn   ?issn          }
+    OPTIONAL { ?journal  bibo:eissn  ?eissn         }
+
+    OPTIONAL { ?article  bibo:doi   ?doi  }
+    OPTIONAL { ?article  bibo:pmid  ?pmid }
+    OPTIONAL
+    {
+        ?article  vivo:hasSubjectArea  [
+            rdfs:label ?subjectArea
+        ]
+    }
+
+    FILTER(BOUND(?doi) || BOUND(?pmid))
+
+}
